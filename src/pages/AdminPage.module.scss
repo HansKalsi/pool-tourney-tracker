@@ -1,0 +1,28 @@
+// Desktop: settings on the left, the activity log filling the right, both within the window.
+.layout {
+  display: grid;
+  gap: var(--mantine-spacing-lg);
+  grid-template-columns: minmax(0, 1fr);
+  @include fit-screen;
+
+  @include from($bp-md) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  }
+}
+
+.col {
+  @include scroll-col;
+  gap: var(--mantine-spacing-xl);
+}
+
+.log {
+  min-height: 420px;
+
+  @media (min-width: $bp-md) and (min-height: 620px) {
+    min-height: 0;
+  }
+
+  > * {
+    height: 100%;
+  }
+}

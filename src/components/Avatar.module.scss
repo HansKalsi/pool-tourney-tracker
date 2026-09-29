@@ -1,0 +1,69 @@
+// A pool ball: coloured (or striped) sphere, small cream number spot, glossy highlight and a
+// darker rim so it reads as round. Sizes are set with --size so every part scales together.
+
+.ball {
+  --size: 40px;
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+  background: var(--ball-color);
+  user-select: none;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
+  overflow: hidden;
+
+  // Stripes: cream ball with a coloured band through the middle.
+  &[data-stripe] {
+    background: linear-gradient(180deg, var(--ball-cream) 0 23%, var(--ball-color) 23% 77%, var(--ball-cream) 77% 100%);
+  }
+
+  // Shading: soft highlight top-left, darker toward the bottom-right rim.
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 32% 26%, rgb(255 255 255 / 0.6) 0, rgb(255 255 255 / 0.15) 14%, transparent 30%),
+      radial-gradient(circle at 42% 38%, transparent 48%, rgb(0 0 0 / 0.28) 100%);
+    pointer-events: none;
+  }
+}
+
+.spot {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48%;
+  height: 48%;
+  border-radius: 50%;
+  background: var(--ball-cream);
+  box-shadow: inset 0 -1px 1px rgb(0 0 0 / 0.12);
+  color: #1c1917;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: calc(var(--size) * 0.29);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.xs {
+  --size: 22px;
+}
+.sm {
+  --size: 30px;
+}
+.md {
+  --size: 38px;
+}
+.lg {
+  --size: 54px;
+}
+.xl {
+  --size: 76px;
+}

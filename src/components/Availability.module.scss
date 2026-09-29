@@ -1,0 +1,94 @@
+.tableWrap {
+  @include surface;
+  overflow-x: auto;
+}
+
+.table {
+  th {
+    white-space: nowrap;
+  }
+}
+
+.dayHead {
+  text-align: center !important;
+  font-weight: 650;
+}
+
+.slotHead {
+  text-align: center !important;
+  font-weight: 500;
+  color: var(--mantine-color-dimmed);
+  font-size: var(--mantine-font-size-xs);
+}
+
+.cell {
+  text-align: center;
+}
+
+.nameLink {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: var(--mantine-radius-sm);
+  @include focus-ring;
+
+  @include hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  span:last-child {
+    max-width: 7rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+
+    @include from($bp-sm) {
+      max-width: none;
+    }
+  }
+}
+
+.count {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--mantine-color-dimmed);
+
+  &[data-best] {
+    font-weight: 700;
+    color: var(--mantine-color-felt-text);
+  }
+}
+
+.suggest {
+  padding: var(--mantine-spacing-sm);
+  border-radius: var(--mantine-radius-lg);
+  background: var(--app-subtle-bg);
+}
+
+.suggestion {
+  padding: 8px 12px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--mantine-radius-md);
+  background: var(--mantine-color-body);
+  text-align: left;
+  transition:
+    border-color 150ms ease,
+    transform 100ms ease;
+  @include focus-ring;
+
+  @include hover {
+    border-color: var(--mantine-color-felt-filled);
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+
+  &[data-selected] {
+    border-color: var(--mantine-color-felt-filled);
+    box-shadow: 0 0 0 1px var(--mantine-color-felt-filled);
+    background: var(--mantine-color-felt-light);
+  }
+}

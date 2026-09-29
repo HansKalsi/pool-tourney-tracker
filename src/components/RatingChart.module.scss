@@ -1,0 +1,107 @@
+.wrap {
+  position: relative;
+}
+
+.svg {
+  display: block;
+  overflow: visible;
+}
+
+.grid {
+  stroke: var(--app-border);
+}
+
+.baseline {
+  stroke: light-dark(var(--mantine-color-gray-4), var(--mantine-color-dark-3));
+}
+
+.tick {
+  fill: var(--mantine-color-dimmed);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.line {
+  stroke: var(--app-chart);
+}
+
+.crosshair {
+  stroke: light-dark(var(--mantine-color-gray-5), var(--mantine-color-dark-2));
+}
+
+.dotWin {
+  fill: var(--app-chart);
+  stroke: var(--mantine-color-body);
+}
+
+.dotLoss {
+  fill: var(--app-chart-loss);
+  stroke: var(--mantine-color-body);
+}
+
+.hit {
+  cursor: crosshair;
+}
+
+.tooltip {
+  position: absolute;
+  z-index: 10;
+  width: 176px;
+  transform: translateX(-50%);
+  padding: 8px 12px;
+  border-radius: var(--mantine-radius-md);
+  background: light-dark(var(--mantine-color-dark-7), var(--mantine-color-white));
+  color: light-dark(var(--mantine-color-white), var(--mantine-color-dark-7));
+  font-size: var(--mantine-font-size-xs);
+  box-shadow: var(--mantine-shadow-md);
+  pointer-events: none;
+}
+
+.tooltipTitle {
+  font-weight: 600;
+}
+
+.tooltipLine {
+  opacity: 0.8;
+  font-variant-numeric: tabular-nums;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px var(--mantine-spacing-md);
+  margin-top: 4px;
+  font-size: var(--mantine-font-size-xs);
+  color: var(--mantine-color-dimmed);
+
+  > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+}
+
+.keyWin,
+.keyLoss {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.keyWin {
+  background: var(--app-chart);
+}
+
+.keyLoss {
+  background: var(--app-chart-loss);
+}
+
+.keyBaseline {
+  width: 16px;
+  border-top: 1px dashed light-dark(var(--mantine-color-gray-5), var(--mantine-color-dark-2));
+}
+
+.axisNote {
+  margin-left: auto;
+}

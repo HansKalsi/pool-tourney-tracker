@@ -1,0 +1,113 @@
+.list {
+  @include surface;
+  overflow: hidden;
+}
+
+.row {
+  display: grid;
+  align-items: center;
+  gap: 2px 12px;
+  padding: 7px 12px;
+  grid-template-columns: 88px 42px minmax(0, 1fr) auto auto;
+  grid-template-areas: 'date time players detail actions';
+  font-size: var(--mantine-font-size-sm);
+  transition: background-color 150ms ease;
+
+  & + & {
+    border-top: 1px solid var(--app-border);
+  }
+
+  @include hover {
+    background: var(--app-subtle-bg);
+  }
+
+  // Phones: date/time on a small line above the players.
+  @include below($bp-sm) {
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'date time detail actions'
+      'players players players actions';
+
+    .detail {
+      justify-content: flex-end;
+    }
+  }
+}
+
+.date {
+  grid-area: date;
+  color: var(--mantine-color-dimmed);
+  white-space: nowrap;
+}
+
+.time {
+  grid-area: time;
+  color: var(--mantine-color-dimmed);
+  font-variant-numeric: tabular-nums;
+}
+
+.players {
+  display: flex;
+  min-width: 0;
+  grid-area: players;
+  align-items: center;
+  gap: 6px;
+}
+
+.player {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+  border-radius: var(--mantine-radius-sm);
+  @include focus-ring;
+
+  span:last-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  @include hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  &[data-winner] {
+    font-weight: 700;
+  }
+}
+
+.trophy {
+  flex-shrink: 0;
+  color: var(--mantine-color-felt-text);
+}
+
+.v {
+  color: var(--mantine-color-dimmed);
+  font-size: 12px;
+}
+
+.detail {
+  display: flex;
+  grid-area: detail;
+  align-items: center;
+  gap: 8px;
+  color: var(--mantine-color-dimmed);
+  font-size: var(--mantine-font-size-xs);
+  white-space: nowrap;
+}
+
+.points {
+  color: var(--mantine-color-felt-text);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.actions {
+  display: flex;
+  grid-area: actions;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}

@@ -1,0 +1,82 @@
+.card {
+  transition: border-color 150ms ease;
+}
+
+.sides {
+  display: flex;
+  align-items: center;
+  gap: var(--mantine-spacing-sm);
+}
+
+.side {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  border-radius: var(--mantine-radius-md);
+  @include focus-ring;
+
+  &[data-align='right'] {
+    flex-direction: row-reverse;
+    text-align: right;
+  }
+
+  @include hover {
+    .name {
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+  }
+}
+
+.name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vs {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mantine-color-dimmed);
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px var(--mantine-spacing-sm);
+  margin-top: var(--mantine-spacing-sm);
+  padding-top: var(--mantine-spacing-sm);
+  border-top: 1px solid var(--app-border);
+  font-size: var(--mantine-font-size-sm);
+  color: var(--mantine-color-dimmed);
+}
+
+.meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.stake {
+  white-space: nowrap;
+  font-size: var(--mantine-font-size-xs);
+  color: var(--mantine-color-dimmed);
+  font-variant-numeric: tabular-nums;
+
+  strong {
+    color: var(--mantine-color-felt-text);
+  }
+}

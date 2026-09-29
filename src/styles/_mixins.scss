@@ -1,0 +1,66 @@
+// Shared SCSS helpers, auto-injected into every .scss file (see vite.config.ts).
+
+$bp-xs: 36em;
+$bp-sm: 48em;
+$bp-md: 62em;
+
+@mixin dark {
+  :global([data-mantine-color-scheme='dark']) & {
+    @content;
+  }
+}
+
+/** Hover styles only on devices that can hover, so touch screens don't get "stuck" hover states. */
+@mixin hover {
+  @media (hover: hover) {
+    &:hover {
+      @content;
+    }
+  }
+}
+
+@mixin from($bp) {
+  @media (min-width: $bp) {
+    @content;
+  }
+}
+
+@mixin below($bp) {
+  @media (max-width: calc(#{$bp} - 0.0625em)) {
+    @content;
+  }
+}
+
+/** Card-like surface used by custom (non-Mantine) blocks. */
+@mixin surface {
+  background: var(--mantine-color-body);
+  border: 1px solid var(--app-border);
+  border-radius: var(--mantine-radius-lg);
+}
+
+@mixin focus-ring {
+  &:focus-visible {
+    outline: 2px solid var(--mantine-color-felt-filled);
+    outline-offset: 2px;
+  }
+}
+
+/** Fills the window under the sticky header on desktop, so the page itself doesn't scroll. */
+@mixin fit-screen {
+  @media (min-width: $bp-md) and (min-height: 620px) {
+    height: calc(100dvh - var(--app-header-h) - 2 * var(--mantine-spacing-md));
+  }
+}
+
+/** A column that scrolls on its own inside a fit-screen layout. */
+@mixin scroll-col {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: var(--mantine-spacing-md);
+
+  @media (min-width: $bp-md) and (min-height: 620px) {
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+}

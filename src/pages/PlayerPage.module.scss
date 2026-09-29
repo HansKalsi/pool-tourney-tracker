@@ -1,0 +1,161 @@
+// Desktop: profile on the left, a tabbed record panel on the right, fitting the window.
+.layout {
+  display: grid;
+  gap: var(--mantine-spacing-lg);
+  grid-template-columns: minmax(0, 1fr);
+  @include fit-screen;
+
+  @include from($bp-md) {
+    grid-template-columns: 360px minmax(0, 1fr);
+  }
+}
+
+.col {
+  @include scroll-col;
+}
+
+.panel {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.tabs {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.tabPanel {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: var(--mantine-spacing-sm);
+  border-radius: var(--mantine-radius-sm);
+  color: var(--mantine-color-dimmed);
+  font-size: var(--mantine-font-size-sm);
+  transition: color 150ms ease;
+  @include focus-ring;
+
+  @include hover {
+    color: var(--mantine-color-text);
+  }
+}
+
+.statLabel {
+  font-size: var(--mantine-font-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--mantine-color-dimmed);
+}
+
+.statValue {
+  margin-top: 2px;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.upcoming {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px 5px 5px;
+  border: 1px solid var(--app-border);
+  border-radius: 999px;
+  background: var(--mantine-color-body);
+  font-size: var(--mantine-font-size-sm);
+  transition:
+    border-color 150ms ease,
+    transform 100ms ease;
+  @include focus-ring;
+
+  &:is(button) {
+    @include hover {
+      border-color: var(--mantine-color-felt-filled);
+    }
+
+    &:active {
+      transform: scale(0.97);
+    }
+  }
+}
+
+.rivalToggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: var(--mantine-spacing-sm);
+  padding: var(--mantine-spacing-md);
+  text-align: left;
+  transition: background-color 150ms ease;
+  @include focus-ring;
+
+  @include hover {
+    background: var(--app-subtle-bg);
+  }
+}
+
+.chevron {
+  flex-shrink: 0;
+  color: var(--mantine-color-dimmed);
+  transition: transform 200ms ease;
+
+  &[data-open] {
+    transform: rotate(180deg);
+  }
+}
+
+.record {
+  display: flex;
+  height: 8px;
+  gap: 2px;
+  overflow: hidden;
+  border-radius: 999px;
+
+  > span {
+    border-radius: 999px;
+  }
+}
+
+.recordWins {
+  background: var(--app-chart);
+}
+
+.recordOther {
+  background: light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4));
+}
+
+.rivalGames {
+  border-top: 1px solid var(--app-border);
+}
+
+.rivalGame {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px var(--mantine-spacing-md);
+  font-size: var(--mantine-font-size-sm);
+
+  & + & {
+    border-top: 1px solid var(--app-border);
+  }
+}
+
+.plus {
+  color: var(--mantine-color-felt-text);
+}
+
+.minus {
+  color: var(--mantine-color-dimmed);
+}

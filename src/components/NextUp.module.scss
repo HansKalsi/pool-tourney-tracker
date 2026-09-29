@@ -1,0 +1,68 @@
+.game {
+  display: grid;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 10px 0;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  grid-template-areas:
+    'time players stakes'
+    'time meta stakes';
+
+  & + & {
+    border-top: 1px solid var(--app-border);
+  }
+}
+
+.time {
+  grid-area: time;
+  font-size: var(--mantine-font-size-lg);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.players {
+  display: flex;
+  min-width: 0;
+  grid-area: players;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+
+  a {
+    display: inline-flex;
+    min-width: 0;
+    align-items: center;
+    gap: 6px;
+    border-radius: var(--mantine-radius-sm);
+    @include focus-ring;
+
+    @include hover {
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+  }
+}
+
+.v {
+  color: var(--mantine-color-dimmed);
+  font-weight: 400;
+}
+
+.meta {
+  grid-area: meta;
+  color: var(--mantine-color-dimmed);
+  font-size: var(--mantine-font-size-xs);
+}
+
+.stakes {
+  grid-area: stakes;
+  color: var(--mantine-color-dimmed);
+  font-size: var(--mantine-font-size-xs);
+  text-align: right;
+  line-height: 1.5;
+
+  strong {
+    color: var(--mantine-color-felt-text);
+    font-variant-numeric: tabular-nums;
+  }
+}

@@ -1,0 +1,30 @@
+// Desktop: toolbar on top, the list fills the rest of the window and scrolls inside itself.
+.layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mantine-spacing-sm);
+  @include fit-screen;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--mantine-spacing-sm);
+}
+
+.body {
+  min-height: 0;
+  flex: 1;
+
+  @media (min-width: $bp-md) and (min-height: 620px) {
+    overflow-y: auto;
+    scrollbar-width: thin;
+
+    // The calendar manages its own scrolling inside each day.
+    &[data-view='calendar'] {
+      overflow: hidden;
+    }
+  }
+}

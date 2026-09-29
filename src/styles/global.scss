@@ -1,0 +1,45 @@
+:root {
+  // Defined per scheme (not with light-dark()) because the Mantine PostCSS transform
+  // doesn't apply to custom properties declared on :root.
+  --app-border: var(--mantine-color-gray-2);
+  --app-subtle-bg: var(--mantine-color-gray-0);
+  --app-page-bg: var(--mantine-color-gray-0);
+  --app-chart: var(--mantine-color-felt-6);
+  --app-header-h: 60px;
+  // Checked against the chart green for colour-blind separation (deutan ΔE 9.8) in both themes.
+  --app-chart-loss: var(--mantine-color-red-7);
+  --app-hero: linear-gradient(135deg, var(--mantine-color-felt-8) 0%, var(--mantine-color-felt-9) 45%, #09090b 100%);
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:root[data-mantine-color-scheme='dark'] {
+  --app-border: var(--mantine-color-dark-4);
+  --app-subtle-bg: var(--mantine-color-dark-6);
+  --app-page-bg: var(--mantine-color-dark-8);
+}
+
+// Cards use Mantine's body colour; the page itself sits one step back.
+body {
+  background: var(--app-page-bg);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

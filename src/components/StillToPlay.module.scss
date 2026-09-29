@@ -1,0 +1,90 @@
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+
+  & + & {
+    border-top: 1px solid var(--app-border);
+  }
+}
+
+.who {
+  display: flex;
+  width: 84px;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  border-radius: var(--mantine-radius-sm);
+  font-size: var(--mantine-font-size-sm);
+  font-weight: 500;
+  @include focus-ring;
+
+  span:last-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  @include hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+
+.opponents {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.opp {
+  display: inline-flex;
+  border-radius: 50%;
+  transition: transform 100ms ease;
+  @include focus-ring;
+
+  // Already booked: faded, because it's sorted — the solid balls are the ones still to arrange.
+  &[data-booked] {
+    opacity: 0.35;
+  }
+
+  &:is(button) {
+    @include hover {
+      transform: translateY(-2px);
+    }
+
+    &:active {
+      transform: scale(0.92);
+    }
+  }
+}
+
+
+.done {
+  flex: 1;
+  color: var(--mantine-color-felt-text);
+  font-size: var(--mantine-font-size-xs);
+  font-weight: 600;
+}
+
+.key {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  color: var(--mantine-color-dimmed);
+  font-size: 11px;
+}
+
+.keyBall {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--mantine-color-dimmed);
+
+  &[data-faded] {
+    opacity: 0.35;
+  }
+}

@@ -1,0 +1,37 @@
+// Desktop: players on the left, availability on the right, both fitting the window.
+.layout {
+  display: grid;
+  gap: var(--mantine-spacing-lg);
+  grid-template-columns: minmax(0, 1fr);
+  @include fit-screen;
+
+  @include from($bp-md) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  }
+}
+
+.col {
+  @include scroll-col;
+}
+
+.card {
+  display: flex;
+  align-items: center;
+  gap: var(--mantine-spacing-sm);
+  padding: 10px 12px;
+  @include surface;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    transform 100ms ease;
+  @include focus-ring;
+
+  @include hover {
+    border-color: var(--mantine-color-felt-filled);
+    box-shadow: var(--mantine-shadow-sm);
+  }
+
+  &:active {
+    transform: scale(0.99);
+  }
+}

@@ -1,0 +1,175 @@
+.hero {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--app-hero);
+  color: #fff;
+}
+
+.inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  max-width: 1440px;
+  min-height: var(--app-header-h);
+  margin: 0 auto;
+  padding: 8px var(--mantine-spacing-md);
+
+  @include from($bp-md) {
+    flex-wrap: nowrap;
+    padding-block: 0;
+  }
+}
+
+.brand {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+
+  @include from($bp-md) {
+    flex: 0 1 auto;
+  }
+}
+
+.home {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.1);
+  color: #fff;
+  transition: background-color 150ms ease;
+  @include focus-ring;
+
+  @include hover {
+    background: rgb(255 255 255 / 0.2);
+  }
+}
+
+.title {
+  overflow: hidden;
+  color: #fff;
+  font-size: 18px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subtitle {
+  overflow: hidden;
+  color: rgb(255 255 255 / 0.6);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// Header buttons collapse to icons on phones.
+.pillLabel {
+  @include below($bp-sm) {
+    display: none;
+  }
+}
+
+.tabs {
+  display: flex;
+  order: 3;
+  width: 100%;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+
+  @include from($bp-md) {
+    order: 0;
+    width: auto;
+    margin-left: 12px;
+  }
+}
+
+.tab {
+  padding: 6px 14px;
+  border-radius: 999px;
+  color: rgb(255 255 255 / 0.75);
+  font-size: var(--mantine-font-size-sm);
+  font-weight: 500;
+  white-space: nowrap;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+  @include focus-ring;
+
+  @include hover {
+    background: rgb(255 255 255 / 0.12);
+    color: #fff;
+  }
+
+  &:global(.active) {
+    background: #fff;
+    color: var(--mantine-color-felt-9);
+  }
+}
+
+.actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 6px;
+
+  @include from($bp-md) {
+    margin-left: auto;
+  }
+}
+
+.pill {
+  display: inline-flex;
+  height: 32px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.1);
+  color: #fff;
+  font-size: var(--mantine-font-size-sm);
+  font-weight: 500;
+  white-space: nowrap;
+  transition:
+    background-color 150ms ease,
+    transform 100ms ease;
+  @include focus-ring;
+
+  &:is(button) {
+    @include hover {
+      background: rgb(255 255 255 / 0.2);
+    }
+
+    &:active {
+      transform: scale(0.97);
+    }
+  }
+}
+
+.adminPill {
+  background: rgb(16 185 129 / 0.25);
+  color: var(--mantine-color-felt-1);
+}
+
+.main {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: var(--mantine-spacing-md) var(--mantine-spacing-md) 64px;
+
+  @include from($bp-md) {
+    padding-bottom: var(--mantine-spacing-md);
+  }
+}
+
+.centered {
+  display: flex;
+  min-height: 60vh;
+  align-items: center;
+  justify-content: center;
+}
