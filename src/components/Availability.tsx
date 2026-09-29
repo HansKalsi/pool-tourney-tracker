@@ -12,7 +12,7 @@ import { IconCheck, IconClock } from './icons'
 
 /** Toggling with an optimistic local copy, so taps feel instant even on a slow connection. */
 function useAvailability() {
-  const { run } = useLeague()
+  const { run, archived } = useLeague()
   const [pending, setPending] = useState<Record<string, string[]>>({})
   const slotsFor = (p: Player) => pending[p.id] ?? p.availability ?? []
 
@@ -30,13 +30,14 @@ function useAvailability() {
     })
   }
 
-  return { slotsFor, toggle }
+  // Archived leagues are frozen, so the toggles are shown but can't be changed.
+  return { slotsFor, toggle, locked: archived }
 }
 
 /** Players × slots grid on the Players tab. Anyone can tick their own row. */
 export function AvailabilityGrid() {
   const { league } = useLeague()
-  const { slotsFor, toggle } = useAvailability()
+  const { slotsFor, toggle, locked } = useAvailability()
   const players = [...league.players].sort((a, b) => a.name.localeCompare(b.name))
   const counts = PLAY_SLOTS.map((s) => players.filter((p) => slotsFor(p).includes(s.id)).length)
   const best = Math.max(...counts)
@@ -84,6 +85,7 @@ export function AvailabilityGrid() {
                       variant={on ? 'filled' : 'default'}
                       aria-pressed={on}
                       aria-label={`${p.name} free ${slotLabel(s)}`}
+                      disabled={locked}
                       onClick={() => toggle(p, s.id)}
                     >
                       {on ? <IconCheck size={16} strokeWidth={3} /> : null}
@@ -115,7 +117,7 @@ export function AvailabilityGrid() {
 
 /** Chip-style editor for a single player (player page). */
 export function AvailabilityPicker({ player }: { player: Player }) {
-  const { slotsFor, toggle } = useAvailability()
+  const { slotsFor, toggle, locked } = useAvailability()
   const mine = slotsFor(player)
   return (
     <Group gap="xl" align="flex-start">
@@ -126,7 +128,7 @@ export function AvailabilityPicker({ player }: { player: Player }) {
           </Text>
           <Group gap="xs">
             {d.slots.map((s) => (
-              <Chip key={s.id} checked={mine.includes(s.id)} onChange={() => toggle(player, s.id)} radius="xl">
+              <Chip key={s.id} checked={mine.includes(s.id)} onChange={() => toggle(player, s.id)} radius="xl" disabled={locked}>
                 {slotTimeLabel(s)}
               </Chip>
             ))}

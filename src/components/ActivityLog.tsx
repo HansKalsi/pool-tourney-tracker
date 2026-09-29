@@ -51,7 +51,13 @@ export function ActivityLog() {
                   <Icon size={14} />
                 </ThemeIcon>
                 <div className={classes.text}>
-                  {e.actor ? <strong>{e.actor}</strong> : <span className={classes.anon}>Someone (not signed in)</span>} {e.text}
+                  {e.actor ? <strong>{e.actor}</strong> : <span className={classes.anon}>Someone</span>}
+                  {e.actor && !e.claimed ? null : (
+                    <Tooltip label={e.actor ? `Said they were ${e.actor} — not signed in as an admin` : 'Not signed in as an admin'}>
+                      <span className={classes.anon}> (not signed in)</span>
+                    </Tooltip>
+                  )}{' '}
+                  {e.text}
                   {e.when ? (
                     <span className={classes.when}>
                       <IconCalendarClock size={12} />

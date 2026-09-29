@@ -1,8 +1,10 @@
 import { Alert, Box, Button, Group, Loader, Modal, SegmentedControl, Stack, Text, TextInput, Title, Tooltip, UnstyledButton } from '@mantine/core'
+import dayjs from 'dayjs'
 import { useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
+import { useConfirm } from '../components/Confirm'
 import { GameDialogsProvider } from '../components/GameDialogs'
-import { IconArrowLeft, IconKey, IconLink, IconShield } from '../components/icons'
+import { IconArchive, IconArrowLeft, IconKey, IconLink, IconShield } from '../components/icons'
 import { toast } from '../components/Toast'
 import { Empty } from '../components/ui'
 import { copy } from '../lib/clipboard'
@@ -15,10 +17,21 @@ export default function LeagueLayout() {
   const loader = useLeagueLoader(leagueId)
   const { state } = loader
   const notFound = state.status === 'error' && state.error.status === 404
+  const archived = state.status === 'error' && state.error.status === 410
 
   useEffect(() => {
     if (notFound) forgetLeague(leagueId)
   }, [notFound, leagueId])
+
+  // Archived leagues are hidden from visitors, so an admin arriving with their admin link has to
+  // be signed in from here (the normal handler lives inside the league view).
+  const { signIn } = loader
+  useEffect(() => {
+    const key = window.location.hash.match(/key=([\w-]+)/)?.[1]
+    if (!archived || !key) return
+    history.replaceState(null, '', window.location.pathname + window.location.search)
+    void signIn(key).then((ok) => toast(ok ? "You're signed in as an admin on this device" : 'That admin link is no longer valid', ok ? 'success' : 'error'))
+  }, [archived, signIn])
 
   if (state.status === 'loading') {
     return (
@@ -30,9 +43,15 @@ export default function LeagueLayout() {
   if (state.status === 'error') {
     return (
       <Box maw={420} mx="auto" px="md" py={80}>
-        <Empty title={notFound ? 'League not found' : "Couldn't load this league"}>
+        <Empty title={notFound ? 'League not found' : archived ? 'This league has been archived' : "Couldn't load this league"}>
           <Stack gap="md" align="center">
-            <span>{notFound ? 'Double-check the link — it may have been deleted.' : state.error.message}</span>
+            <span>
+              {notFound
+                ? 'Double-check the link — it may have been deleted.'
+                : archived
+                  ? "It's no longer active. If you're one of its admins, open your admin link to view it."
+                  : state.error.message}
+            </span>
             <Button component={Link} to="/" variant="light">
               Go home
             </Button>
@@ -51,7 +70,8 @@ export default function LeagueLayout() {
 }
 
 function LeagueShell() {
-  const { league, viewer, isAdmin, signIn } = useLeague()
+  const { league, viewer, signIn, run } = useLeague()
+  const confirm = useConfirm()
   const location = useLocation()
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
@@ -67,16 +87,18 @@ function LeagueShell() {
     const match = location.hash.match(/key=([\w-]+)/)
     if (!match) return
     navigate({ pathname: location.pathname, search: location.search, hash: '' }, { replace: true })
-    void signIn(match[1]).then((ok) => toast(ok ? "You're signed in as an admin on this device" : 'That admin link is no longer valid', ok ? 'success' : 'error'))
+    void signIn(match[1]).then((ok) =>
+      toast(ok ? "You're signed in as an admin on this device" : 'That admin link is no longer valid', ok ? 'success' : 'error'),
+    )
   }, [location.hash, location.pathname, location.search, navigate, signIn])
 
-  const showSignIn = signInOpen || (!!invite && !isAdmin)
+  const showSignIn = signInOpen || (!!invite && !viewer)
 
   const tabs = [
     { to: '', label: 'Overview', end: true },
     { to: 'games', label: 'Games' },
     { to: 'players', label: 'Players' },
-    ...(isAdmin ? [{ to: 'admin', label: 'Admin' }] : []),
+    ...(viewer ? [{ to: 'admin', label: 'Admin' }] : []),
   ]
   const played = league.matches.filter((m) => m.result).length
 
@@ -114,8 +136,8 @@ function LeagueShell() {
             >
               <IconLink size={16} /> <span className={classes.pillLabel}>Share</span>
             </UnstyledButton>
-            {isAdmin ? (
-              <Tooltip label={`Signed in as ${viewer?.name}`}>
+            {viewer ? (
+              <Tooltip label={`Signed in as ${viewer.name}`}>
                 <span className={`${classes.pill} ${classes.adminPill}`}>
                   <IconShield size={16} /> <span className={classes.pillLabel}>Admin</span>
                 </span>
@@ -134,6 +156,37 @@ function LeagueShell() {
         </div>
       </header>
       <main className={classes.main}>
+        {league.archived ? (
+          <ArchivedBanner
+            by={league.archived.by}
+            at={league.archived.at}
+            isOwner={!!viewer?.isOwner}
+            onRestore={() =>
+              confirm({
+                title: 'Restore this league?',
+                message: 'It becomes visible to everyone with the link again, and admins can make changes.',
+                confirmLabel: 'Restore league',
+                onConfirm: async () => !!(await run({ action: 'restoreLeague' }, 'League restored')),
+              })
+            }
+            onDelete={() =>
+              confirm({
+                title: 'Delete this league permanently?',
+                message: `This erases "${league.name}", every player, result and log entry for good. It can't be undone.`,
+                confirmLabel: 'Delete permanently',
+                danger: true,
+                input: { label: 'Type the league name to confirm', placeholder: league.name, mustEqual: league.name },
+                onConfirm: async () => {
+                  const res = await run({ action: 'deleteLeague' })
+                  if (!res?.deleted) return false
+                  forgetLeague(league.id)
+                  toast('League deleted')
+                  navigate('/')
+                },
+              })
+            }
+          />
+        ) : null}
         <Outlet />
       </main>
       <AdminSignInModal
@@ -197,7 +250,7 @@ function AdminSignInModal({ opened, onClose, initialCode }: { opened: boolean; o
             Admin sign-in
           </Text>
           <Text size="sm" c="dimmed">
-            Admins add players, book games and enter results.
+            Admins manage players, fix or remove games and results, and run the league.
           </Text>
         </div>
       }
@@ -211,8 +264,8 @@ function AdminSignInModal({ opened, onClose, initialCode }: { opened: boolean; o
         <Stack gap="md">
           <Alert variant="light" color="gray" radius="md" p="sm">
             <Text size="sm">
-              <strong>Just playing?</strong> You don't need to sign in — everyone with the league link can see everything, and you can set your play times on
-              the Players tab.
+              <strong>Just playing?</strong> You don't need to sign in — anyone with the league link can book games, log results and set their play
+              times.
             </Text>
           </Alert>
           <SegmentedControl
@@ -259,5 +312,29 @@ function AdminSignInModal({ opened, onClose, initialCode }: { opened: boolean; o
         </Stack>
       </form>
     </Modal>
+  )
+}
+
+/** Shown to admins viewing an archived league: it's read-only until the creator restores it. */
+function ArchivedBanner({ by, at, isOwner, onRestore, onDelete }: { by: string; at: string; isOwner: boolean; onRestore: () => void; onDelete: () => void }) {
+  return (
+    <Alert color="yellow" radius="lg" mb="md" icon={<IconArchive size={18} />} title="This league is archived">
+      <Group justify="space-between" gap="sm">
+        <Text size="sm">
+          Archived by {by} on {dayjs(at).format('D MMM YYYY')}. It's hidden from visitors and read-only — nothing has been deleted.
+          {isOwner ? '' : ' Only the league creator can restore it.'}
+        </Text>
+        {isOwner ? (
+          <Group gap="xs">
+            <Button size="xs" onClick={onRestore}>
+              Restore league
+            </Button>
+            <Button size="xs" variant="subtle" color="red" onClick={onDelete}>
+              Delete permanently
+            </Button>
+          </Group>
+        ) : null}
+      </Group>
+    </Alert>
   )
 }

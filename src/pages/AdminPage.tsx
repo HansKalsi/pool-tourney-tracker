@@ -3,17 +3,15 @@ import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router'
 import { ActivityLog } from '../components/ActivityLog'
 import { useConfirm } from '../components/Confirm'
-import { IconCheck, IconCopy, IconKey, IconLogout, IconPlus, IconShield, IconTrash } from '../components/icons'
-import { toast } from '../components/Toast'
+import { IconArchive, IconCheck, IconCopy, IconKey, IconLogout, IconPlus, IconShield } from '../components/icons'
 import { SectionHeader } from '../components/ui'
 import { copy } from '../lib/clipboard'
 import { inlineDay, shortDate } from '../lib/format'
 import { useLeague } from '../lib/league'
-import { forgetLeague } from '../lib/storage'
 import classes from './AdminPage.module.scss'
 
 export default function AdminPage() {
-  const { league, viewer, invites = [], token, run, signOut } = useLeague()
+  const { league, viewer, invites = [], token, run, signOut, archived } = useLeague()
   const confirm = useConfirm()
   const navigate = useNavigate()
   const [name, setName] = useState(league.name)
@@ -49,20 +47,13 @@ export default function AdminPage() {
     setRevoking(null)
   }
 
-  const deleteLeague = () =>
+  const archiveLeague = () =>
     confirm({
-      title: 'Delete this league?',
-      message: `This permanently deletes "${league.name}", every player and every result. It can't be undone.`,
-      confirmLabel: 'Delete league',
-      danger: true,
-      input: { label: 'Type the league name to confirm', placeholder: league.name, mustEqual: league.name },
-      onConfirm: async () => {
-        const res = await run({ action: 'deleteLeague' })
-        if (!res?.deleted) return false
-        forgetLeague(league.id)
-        toast('League deleted')
-        navigate('/')
-      },
+      title: 'Archive this league?',
+      message:
+        'Nothing is deleted. The league is hidden from everyone except its admins and frozen so nobody can change it. You can restore it or delete it for good later.',
+      confirmLabel: 'Archive league',
+      onConfirm: async () => !!(await run({ action: 'archiveLeague' }, 'League archived — nothing was deleted')),
     })
 
   const removeAdmin = (adminId: string, adminName: string) => {
@@ -132,94 +123,101 @@ export default function AdminPage() {
           </Card>
         </section>
 
-        <section>
-          <SectionHeader title="League name" />
-          <form
-            onSubmit={(e) => {
-              e.preventDefault()
-              void rename()
-            }}
-          >
-            <Group gap="xs" wrap="nowrap">
-              <TextInput style={{ flex: 1 }} value={name} maxLength={60} onChange={(e) => setName(e.currentTarget.value)} aria-label="League name" />
-              <Button type="submit" variant="default" disabled={!nameChanged} loading={renaming}>
-                Save
-              </Button>
-            </Group>
-          </form>
-        </section>
-
-        <section>
-          <SectionHeader
-            title="Admins"
-            subtitle="Admins can add players, book games and enter results."
-            action={
-              <Button size="compact-md" leftSection={<IconPlus size={16} />} onClick={createInvite} loading={inviting}>
-                Invite admin
-              </Button>
-            }
-          />
-          <Card padding={0}>
-            {league.admins.map((a, i) => (
-              <Group key={a.id} p="md" gap="sm" wrap="nowrap" style={i ? { borderTop: '1px solid var(--app-border)' } : undefined}>
-                <ThemeIcon variant="light" radius="xl" size="md">
-                  <IconShield size={16} />
-                </ThemeIcon>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <Text fw={500} truncate>
-                    {a.name}{' '}
-                    {a.id === viewer.adminId ? (
-                      <Text span c="dimmed">
-                        (you)
-                      </Text>
-                    ) : null}
-                  </Text>
-                  <Text size="xs" c="dimmed">
-                    {a.isOwner ? 'Creator' : `Admin since ${shortDate(a.createdAt)}`}
-                  </Text>
-                </div>
-                {!a.isOwner && (viewer.isOwner || a.id === viewer.adminId) ? (
-                  <Button variant="subtle" color="gray" size="compact-sm" onClick={() => removeAdmin(a.id, a.name)}>
-                    {a.id === viewer.adminId ? 'Leave' : 'Remove'}
-                  </Button>
-                ) : null}
-              </Group>
-            ))}
-          </Card>
-          {invites.length ? (
-            <Stack gap={6} mt="md">
-              <Text size="sm" fw={500} c="dimmed">
-                Open invites
-              </Text>
-              {invites.map((i) => (
-                <Group
-                  key={i.id}
-                  justify="space-between"
-                  gap="sm"
-                  px="sm"
-                  py={6}
-                  style={{ background: 'var(--app-subtle-bg)', borderRadius: 'var(--mantine-radius-md)' }}
-                >
-                  <Text size="sm">
-                    Created by {i.createdBy} · expires {inlineDay(i.expiresAt)}
-                  </Text>
-                  <Button variant="subtle" color="gray" size="compact-sm" onClick={() => revoke(i.id)} loading={revoking === i.id}>
-                    Revoke
+        {archived ? null : (
+          <>
+            <section>
+              <SectionHeader title="League name" />
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  void rename()
+                }}
+              >
+                <Group gap="xs" wrap="nowrap">
+                  <TextInput style={{ flex: 1 }} value={name} maxLength={60} onChange={(e) => setName(e.currentTarget.value)} aria-label="League name" />
+                  <Button type="submit" variant="default" disabled={!nameChanged} loading={renaming}>
+                    Save
                   </Button>
                 </Group>
-              ))}
-            </Stack>
-          ) : null}
-        </section>
+              </form>
+            </section>
 
-        {viewer.isOwner ? (
-          <section>
-            <SectionHeader title="Danger zone" />
-            <Button variant="light" color="red" leftSection={<IconTrash size={16} />} onClick={deleteLeague}>
-              Delete league
-            </Button>
-          </section>
-        ) : null}
+            <section>
+              <SectionHeader
+                title="Admins"
+                subtitle="Admins manage players, fix or remove games and results, and invite other admins."
+                action={
+                  <Button size="compact-md" leftSection={<IconPlus size={16} />} onClick={createInvite} loading={inviting}>
+                    Invite admin
+                  </Button>
+                }
+              />
+              <Card padding={0}>
+                {league.admins.map((a, i) => (
+                  <Group key={a.id} p="md" gap="sm" wrap="nowrap" style={i ? { borderTop: '1px solid var(--app-border)' } : undefined}>
+                    <ThemeIcon variant="light" radius="xl" size="md">
+                      <IconShield size={16} />
+                    </ThemeIcon>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <Text fw={500} truncate>
+                        {a.name}{' '}
+                        {a.id === viewer.adminId ? (
+                          <Text span c="dimmed">
+                            (you)
+                          </Text>
+                        ) : null}
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        {a.isOwner ? 'Creator' : `Admin since ${shortDate(a.createdAt)}`}
+                      </Text>
+                    </div>
+                    {!a.isOwner && (viewer.isOwner || a.id === viewer.adminId) ? (
+                      <Button variant="subtle" color="gray" size="compact-sm" onClick={() => removeAdmin(a.id, a.name)}>
+                        {a.id === viewer.adminId ? 'Leave' : 'Remove'}
+                      </Button>
+                    ) : null}
+                  </Group>
+                ))}
+              </Card>
+              {invites.length ? (
+                <Stack gap={6} mt="md">
+                  <Text size="sm" fw={500} c="dimmed">
+                    Open invites
+                  </Text>
+                  {invites.map((i) => (
+                    <Group
+                      key={i.id}
+                      justify="space-between"
+                      gap="sm"
+                      px="sm"
+                      py={6}
+                      style={{ background: 'var(--app-subtle-bg)', borderRadius: 'var(--mantine-radius-md)' }}
+                    >
+                      <Text size="sm">
+                        Created by {i.createdBy} · expires {inlineDay(i.expiresAt)}
+                      </Text>
+                      <Button variant="subtle" color="gray" size="compact-sm" onClick={() => revoke(i.id)} loading={revoking === i.id}>
+                        Revoke
+                      </Button>
+                    </Group>
+                  ))}
+                </Stack>
+              ) : null}
+            </section>
+
+            {viewer.isOwner ? (
+              <section>
+                <SectionHeader
+                  title="Finished with the league?"
+                  subtitle="Archiving hides and freezes it — nothing is deleted, and you can restore it any time."
+                />
+                <Button variant="light" color="gray" leftSection={<IconArchive size={16} />} onClick={archiveLeague}>
+                  Archive league
+                </Button>
+              </section>
+            ) : null}
+          </>
+        )}
       </div>
 
       <div className={classes.log}>

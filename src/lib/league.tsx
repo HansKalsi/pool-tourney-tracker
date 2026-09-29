@@ -9,7 +9,11 @@ type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K>
 export type LeagueAction = DistributiveOmit<Exclude<Action, { action: 'createLeague' }>, 'leagueId'>
 
 interface LeagueContextValue extends LeagueResponse {
+  /** Can make changes: a signed-in admin, and the league isn't archived. */
   isAdmin: boolean
+  /** Can book games and log results: everyone, unless the league is archived. */
+  canBook: boolean
+  archived: boolean
   token: string | null
   stats: PlayerStats[]
   ratings: Ratings
@@ -67,7 +71,7 @@ export function useLeagueLoader(leagueId: string) {
     } catch (e) {
       const error = e instanceof ApiError ? e : new ApiError(0, String(e))
       // Keep showing stale data if a background refresh fails.
-      setState((s) => (s.status === 'ready' && error.status !== 404 ? s : { status: 'error', error }))
+      setState((s) => (s.status === 'ready' && error.status !== 404 && error.status !== 410 ? s : { status: 'error', error }))
     }
   }, [leagueId])
 
@@ -155,7 +159,9 @@ export function LeagueProvider({ loader, children }: { loader: ReturnType<typeof
     const ratings = computeRatings(data.league)
     return {
       ...data,
-      isAdmin: !!data.viewer,
+      isAdmin: !!data.viewer && !data.league.archived,
+      canBook: !data.league.archived,
+      archived: !!data.league.archived,
       token,
       ratings,
       stats: computeStats(data.league, ratings),

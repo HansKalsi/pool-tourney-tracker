@@ -106,7 +106,21 @@ function resultFor(pair: [string, string], value: unknown): MatchResult | null {
     throw new HttpError(400, 'The winner must be one of the two players.')
   }
   const method: ResultMethod = r.method === 'default' ? 'default' : 'standard'
-  return { winnerId: r.winnerId, method, playedAt: isoDate(r.playedAt, 'Date played') }
+  const playedAt = isoDate(r.playedAt, 'Date played')
+  // A few minutes' slack for clock differences between devices.
+  if (Date.parse(playedAt) > Date.now() + 5 * 60 * 1000) throw new HttpError(400, "The date played can't be in the future.")
+  return { winnerId: r.winnerId, method, playedAt }
+}
+
+/**
+ * People who aren't signed in say which player they are when they book or log a game. It isn't
+ * verified — it's there so the activity log reads "Ana (not signed in)" rather than "someone".
+ */
+function claimedActor(league: StoredLeague, admin: StoredAdmin | null, by: unknown): { actor?: string; claimed?: boolean } {
+  if (admin) return {}
+  const player = league.players.find((p) => p.id === by)
+  if (!player) throw new HttpError(400, 'Pick who you are, so everyone knows who made this change.')
+  return { actor: player.name, claimed: true }
 }
 
 function nameList(value: unknown): string[] {
@@ -168,6 +182,8 @@ const CATEGORY: Record<ActionName, ActivityCategory> = {
   redeemInvite: 'admin',
   renameLeague: 'admin',
   deleteLeague: 'admin',
+  archiveLeague: 'admin',
+  restoreLeague: 'admin',
   createInvite: 'admin',
   revokeInvite: 'admin',
   removeAdmin: 'admin',
@@ -182,7 +198,7 @@ const CATEGORY: Record<ActionName, ActivityCategory> = {
   generateFixtures: 'games',
 }
 
-type Log = (text: string, opts?: { when?: string | null; actor?: string | null }) => void
+type Log = (text: string, opts?: { when?: string | null; actor?: string | null; claimed?: boolean }) => void
 
 function addActivity(league: StoredLeague, entry: Omit<ActivityEntry, 'id' | 'at' | 'category'>) {
   const log = (league.activity ??= [])
@@ -230,11 +246,20 @@ async function mutate(action: { action: ActionName; leagueId?: unknown }, token:
     const admin = findAdmin(current, token)
     if (auth !== 'none' && !admin) throw new HttpError(403, 'Only league admins can make changes.')
     if (auth === 'owner' && !admin?.isOwner) throw new HttpError(403, 'Only the league creator can do that.')
+    if (current.archived && action.action !== 'restoreLeague') {
+      throw new HttpError(403, 'This league is archived — the creator needs to restore it before anything can change.')
+    }
 
     const draft: StoredLeague = structuredClone(current)
     draft.invites = draft.invites.filter((i) => Date.parse(i.expiresAt) > Date.now())
     const log: Log = (text, opts) =>
-      addActivity(draft, { actor: opts?.actor !== undefined ? opts.actor : (admin?.name ?? null), action: action.action, text, when: opts?.when ?? undefined })
+      addActivity(draft, {
+        actor: opts?.actor !== undefined ? opts.actor : (admin?.name ?? null),
+        ...(opts?.claimed ? { claimed: true } : {}),
+        action: action.action,
+        text,
+        when: opts?.when ?? undefined,
+      })
     const extra = mutation(draft, admin, log) ?? {}
     draft.version = current.version + 1
     draft.updatedAt = now()
@@ -307,10 +332,25 @@ async function runAction(body: Record<string, unknown>, token: string | null): P
         log(`renamed the league from "${before}" to "${league.name}"`)
       })
 
+    case 'archiveLeague':
+      return mutate(a, token, 'owner', (league, admin, log) => {
+        league.archived = { at: now(), by: admin!.name }
+        log('archived the league')
+      })
+
+    case 'restoreLeague':
+      return mutate(a, token, 'owner', (league, _admin, log) => {
+        if (!league.archived) throw new HttpError(400, "This league isn't archived.")
+        league.archived = null
+        log('restored the league')
+      })
+
     case 'deleteLeague': {
       const league = typeof a.leagueId === 'string' ? await getStore().get(a.leagueId) : null
       if (!league) throw new HttpError(404, 'League not found.')
       if (!findAdmin(league, token)?.isOwner) throw new HttpError(403, 'Only the league creator can delete it.')
+      // Deleting is irreversible, so it's a second step after archiving — never a one-click action.
+      if (!league.archived) throw new HttpError(400, 'Archive the league first — it can only be deleted permanently once archived.')
       await getStore().delete(league.id)
       return { deleted: true }
     }
@@ -360,8 +400,9 @@ async function runAction(body: Record<string, unknown>, token: string | null): P
       })
 
     case 'createMatch':
-      return mutate(a, token, 'admin', (league, _admin, log) => {
+      return mutate(a, token, 'none', (league, admin, log) => {
         if (league.matches.length >= LIMITS.matches) throw new HttpError(400, 'This league has hit its game limit.')
+        const who = claimedActor(league, admin, a.by)
         const playerIds = pairOf(league, a.playerIds)
         const match: Match = {
           id: newId(),
@@ -371,15 +412,21 @@ async function runAction(body: Record<string, unknown>, token: string | null): P
           result: resultFor(playerIds, a.result),
           createdAt: now(),
         }
+        if (!admin && !match.result && !match.scheduledAt) throw new HttpError(403, 'Only admins can add matchups without a time or result.')
         league.matches.push(match)
-        if (match.result) log(`logged a result: ${resultText(league, match)}`, { when: match.result.playedAt })
-        else if (match.scheduledAt) log(`booked ${vs(league, playerIds)}`, { when: match.scheduledAt })
+        if (match.result) log(`logged a result: ${resultText(league, match)}`, { when: match.result.playedAt, ...who })
+        else if (match.scheduledAt) log(`booked ${vs(league, playerIds)}`, { when: match.scheduledAt, ...who })
         else log(`added a matchup: ${vs(league, playerIds)}`)
       })
 
     case 'updateMatch':
-      return mutate(a, token, 'admin', (league, _admin, log) => {
+      return mutate(a, token, 'none', (league, admin, log) => {
         const match = findMatch(league, a.matchId)
+        const who = claimedActor(league, admin, a.by)
+        // Anyone can book a game that hasn't been booked; moving or cancelling one is for admins.
+        if (!admin && (match.scheduledAt || match.result || !a.scheduledAt)) {
+          throw new HttpError(403, 'Only admins can change or cancel an existing booking.')
+        }
         const before = match.scheduledAt
         match.scheduledAt = optionalIsoDate(a.scheduledAt, 'Date')
         match.location = optionalText(a.location, 'Location', LIMITS.location)
@@ -387,16 +434,19 @@ async function runAction(body: Record<string, unknown>, token: string | null): P
         if (!match.scheduledAt) log(`cleared the booking for ${game}`)
         else if (before && before !== match.scheduledAt) log(`moved ${game}`, { when: match.scheduledAt })
         else if (before) log(`updated the booking for ${game}`, { when: match.scheduledAt })
-        else log(`booked ${game}`, { when: match.scheduledAt })
+        else log(`booked ${game}`, { when: match.scheduledAt, ...who })
       })
 
     case 'setResult':
-      return mutate(a, token, 'admin', (league, _admin, log) => {
+      return mutate(a, token, 'none', (league, admin, log) => {
         const match = findMatch(league, a.matchId)
+        const who = claimedActor(league, admin, a.by)
+        // Anyone can enter a result for a game that doesn't have one; changing or clearing one is for admins.
+        if (!admin && (match.result || !a.result)) throw new HttpError(403, 'Only admins can change or clear a result.')
         const had = !!match.result
         match.result = resultFor(match.playerIds, a.result)
         if (!match.result) log(`cleared the result of ${vs(league, match.playerIds)}`)
-        else log(`${had ? 'changed a result' : 'entered a result'}: ${resultText(league, match)}`, { when: match.result.playedAt })
+        else log(`${had ? 'changed a result' : 'entered a result'}: ${resultText(league, match)}`, { when: match.result.playedAt, ...who })
       })
 
     case 'deleteMatch':
@@ -467,7 +517,10 @@ export async function handleApi(req: ApiRequest): Promise<ApiResult> {
       if (!id) throw new HttpError(400, 'Missing league id.')
       const league = await getStore().get(id)
       if (!league) throw new HttpError(404, 'League not found.')
-      return { status: 200, body: toResponse(league, findAdmin(league, req.token)) }
+      const admin = findAdmin(league, req.token)
+      // Archived leagues are kept but hidden from everyone except their admins.
+      if (league.archived && !admin) throw new HttpError(410, 'This league has been archived.')
+      return { status: 200, body: toResponse(league, admin) }
     }
     if (req.method === 'POST') {
       if (!req.body || typeof req.body !== 'object') throw new HttpError(400, 'Expected a JSON body.')

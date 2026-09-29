@@ -5,7 +5,7 @@ Built with React, [Mantine](https://mantine.dev) and SCSS modules, and deployed 
 A small, friendly 8-ball league tracker for colleagues: matchups, bookings, results, a top-three podium, and per-player track records and head-to-heads.
 
 - **No accounts.** Whoever creates a league is its admin. They invite other admins with one-time codes (Admin tab → *Invite admin*).
-- **Public read-only.** Anyone with the league link can view it. Only admins can change anything.
+- **Open to everyone, fixable by admins.** Anyone with the link can view the league, book games, log results and set their play times. Someone who isn't signed in picks "Who are you?" once per device so the log shows their name. Only admins can change or remove what's already there (existing results and bookings, deleting games), manage players, create matchups and invite admins.
 - **Results:** each game is a *Win*, a *Win by default* (the opponent potted the black early), or a loss for the other player.
 - **Skill rating:** everyone starts at **1000**. A win *captures* points from the opponent (Elo-style, zero-sum). Beating a stronger player captures more, and losing to a stronger player costs little, so newcomers aren't punished. Each game has **50 points wagered**: the two possible payouts always add up to 50. Equals play for 25 each, and with a 100-point gap the underdog stands to win 32 against the favourite's 18. As in official rules, a win by default counts as a normal win: it's recorded as "by default" in the history but pays the same points. Tune `K` in `src/lib/stats.ts`.
 - **Best times to play:** players tick the office slots that suit them (Players tab or their own page). Anyone with the link can do this, since it's only a preference. When booking, the app suggests the next slot both players are free and skips slots that are already booked. Edit the slot list in `shared/slots.ts`.
@@ -42,6 +42,7 @@ If the database isn't connected yet, the API answers with a clear "No database c
 - **Invite codes** (e.g. `K7QM-2XPA`) work once and expire after 7 days. You can share the code itself or an invite link.
 - The server stores only SHA-256 hashes of keys and codes.
 - The league creator can remove other admins. Any admin can leave.
+- **Archiving instead of deleting:** the creator can archive a league (Admin tab). Nothing is deleted: it's hidden from visitors and frozen, and admins can still view it read-only. It can be restored at any time, and only an archived league can be deleted permanently.
 - **Activity log** (Admin tab, admins only): every change is recorded server-side with who made it and when. That covers results, bookings, players, play times (changes by people who aren't signed in show as "Someone (not signed in)"), invites, admins joining or leaving, and league renames. It can be filtered to *Admin & setup* and keeps the last 300 entries.
 
 ## Project layout

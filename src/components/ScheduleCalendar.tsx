@@ -78,9 +78,9 @@ function MatchEvent({ match, at }: { match: Match; at: Date }) {
   )
 }
 
-/** An open office slot: suggests two players who are both free, and books it in one tap for admins. */
+/** An open office slot: suggests a to-book matchup that fits it, bookable in one tap by anyone. */
 function SlotEvent({ item }: { item: Extract<CalendarItem, { kind: 'slot' }> }) {
-  const { isAdmin, player } = useLeague()
+  const { canBook, player } = useLeague()
   const { openBooking } = useGameDialogs()
   const fixture = item.suggestion
   const pair = fixture?.playerIds
@@ -88,7 +88,7 @@ function SlotEvent({ item }: { item: Extract<CalendarItem, { kind: 'slot' }> }) 
 
   if (!pair) {
     const content = <span className={classes.time}>{label} · open</span>
-    return isAdmin ? (
+    return canBook ? (
       <Tooltip label="No matchup left to book suits this slot — tap to book any game here">
         <UnstyledButton className={classes.event} data-state="slot" onClick={() => openBooking(undefined, undefined, item.at)}>
           {content}
@@ -107,7 +107,7 @@ function SlotEvent({ item }: { item: Extract<CalendarItem, { kind: 'slot' }> }) 
       <Head label={label} ids={pair} />
       <Names ids={pair} />
       <span className={classes.cta}>
-        {isAdmin ? (
+        {canBook ? (
           <>
             <IconPlus size={11} /> Book match
           </>
@@ -117,7 +117,7 @@ function SlotEvent({ item }: { item: Extract<CalendarItem, { kind: 'slot' }> }) 
       </span>
     </>
   )
-  if (!isAdmin) {
+  if (!canBook) {
     return (
       <Tooltip label={`${names} still need to play each other, and both usually play at this time`}>
         <div className={classes.event} data-state="suggest">

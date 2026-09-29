@@ -92,7 +92,7 @@ function RivalRow({ row, playerId }: { row: HeadToHead; playerId: string }) {
 
 export default function PlayerPage() {
   const { playerId = '' } = useParams()
-  const { league, stats, ratings, isAdmin, run, player } = useLeague()
+  const { league, stats, ratings, isAdmin, canBook, run, player } = useLeague()
   const { openBooking } = useGameDialogs()
   const confirm = useConfirm()
   const navigate = useNavigate()
@@ -247,8 +247,8 @@ export default function PlayerPage() {
                     </Text>
                   </>
                 )
-                // Only admins can change bookings, so only they get a button.
-                return isAdmin ? (
+                // Anyone can book an unbooked game; changing an existing booking is for admins.
+                return isAdmin || (canBook && !m.scheduledAt) ? (
                   <UnstyledButton key={m.id} className={classes.upcoming} onClick={() => openBooking(m)}>
                     {content}
                   </UnstyledButton>

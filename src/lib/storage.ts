@@ -47,3 +47,12 @@ export function forgetLeague(id: string) {
   write(RECENT, getRecent().filter((l) => l.id !== id))
   setToken(id, null)
 }
+
+// Which player this device belongs to — asked once when someone books or logs without being an admin.
+const ME = 'poolLeague.me'
+
+export const getMe = (leagueId: string): string | null => read<Record<string, string>>(ME, {})[leagueId] ?? null
+
+export function setMe(leagueId: string, playerId: string) {
+  write(ME, { ...read<Record<string, string>>(ME, {}), [leagueId]: playerId })
+}

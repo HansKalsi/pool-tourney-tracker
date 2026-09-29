@@ -1,10 +1,11 @@
 import { Autocomplete, Button, Group, Modal, Radio, Select, SimpleGrid, Stack, Text, UnstyledButton } from '@mantine/core'
 import { DateTimePicker } from '@mantine/dates'
 import { createContext, useContext, useMemo, useRef, useState, type ReactNode } from 'react'
-import type { Match, ResultMethod } from '../../shared/types'
-import { fromPickerValue, toPickerValue } from '../lib/format'
+import type { Match, PublicLeague, ResultMethod } from '../../shared/types'
+import { dateTimeLabel, fromPickerValue, toPickerValue } from '../lib/format'
 import { useLeague } from '../lib/league'
 import { pointsInPlay } from '../lib/stats'
+import { getMe, setMe } from '../lib/storage'
 import { sharedSlots, SuggestedTimes } from './Availability'
 import { Avatar } from './Avatar'
 import { useHandoff } from './Handoff'
@@ -102,6 +103,46 @@ function PlayerPicker({ value, onChange }: { value: [string, string]; onChange: 
   )
 }
 
+const samePair = (m: Match, [a, b]: [string, string]) => m.playerIds.includes(a) && m.playerIds.includes(b)
+
+/**
+ * The game a new booking or result should go on, so we fill in the league's existing matchups
+ * rather than creating duplicates. Results prefer a game that was booked (earliest first).
+ */
+function existingGame(league: PublicLeague, pair: [string, string], kind: 'book' | 'result') {
+  const pending = league.matches.filter((m) => !m.result && samePair(m, pair))
+  if (kind === 'book') return pending.find((m) => !m.scheduledAt)
+  return pending.sort((x, y) => (x.scheduledAt ?? '\uffff').localeCompare(y.scheduledAt ?? '\uffff'))[0]
+}
+
+/**
+ * People who aren't admins say which player they are (once per device) when they book or log a
+ * game, so the activity log shows a name. Returns the chosen player id, or null for admins.
+ */
+function useWhoAreYou() {
+  const { league, isAdmin } = useLeague()
+  const [me, setMeState] = useState<string | null>(() => {
+    const saved = getMe(league.id)
+    return saved && league.players.some((p) => p.id === saved) ? saved : null
+  })
+  const field = isAdmin ? null : (
+    <Select
+      label="Who are you?"
+      description="So everyone can see who booked or logged this. We'll remember it on this device."
+      placeholder="Pick your name"
+      data={[...league.players].sort((a, b) => a.name.localeCompare(b.name)).map((p) => ({ value: p.id, label: p.name }))}
+      value={me}
+      onChange={(v) => {
+        setMeState(v)
+        if (v) setMe(league.id, v)
+      }}
+      searchable
+      required
+    />
+  )
+  return { by: isAdmin ? undefined : (me ?? undefined), ready: isAdmin || !!me, field }
+}
+
 function FixedPlayers({ ids }: { ids: [string, string] }) {
   const { player } = useLeague()
   return (
@@ -119,7 +160,8 @@ function FixedPlayers({ ids }: { ids: [string, string] }) {
 }
 
 function BookingForm({ match, preset, at, onClose }: { match?: Match; preset?: [string, string]; at?: Date; onClose: () => void }) {
-  const { league, run } = useLeague()
+  const { league, run, isAdmin } = useLeague()
+  const who = useWhoAreYou()
   const [pair, setPair] = useState<[string, string]>(match?.playerIds ?? preset ?? ['', ''])
   // Start on the soonest slot both players like, if there is one.
   const [when, setWhen] = useState<string | null>(() =>
@@ -129,15 +171,17 @@ function BookingForm({ match, preset, at, onClose }: { match?: Match; preset?: [
   const [location, setLocation] = useState(match?.location ?? lastLocation)
   const [saving, setSaving] = useState(false)
   const knownLocations = [...new Set(league.matches.map((m) => m.location).filter(Boolean))] as string[]
-  const valid = !!(pair[0] && pair[1] && pair[0] !== pair[1] && when)
+  const valid = !!(pair[0] && pair[1] && pair[0] !== pair[1] && when) && who.ready
+  // Picking two players who already have a matchup waiting books that one instead of adding another.
+  const target = match ?? (pair[0] && pair[1] ? existingGame(league, pair, 'book') : undefined)
 
   async function save() {
     if (!valid) return
     setSaving(true)
     const scheduledAt = fromPickerValue(when!)
-    const res = match
-      ? await run({ action: 'updateMatch', matchId: match.id, scheduledAt, location }, 'Game booked')
-      : await run({ action: 'createMatch', playerIds: pair, scheduledAt, location, result: null }, 'Game booked')
+    const res = target
+      ? await run({ action: 'updateMatch', matchId: target.id, scheduledAt, location, by: who.by }, 'Game booked')
+      : await run({ action: 'createMatch', playerIds: pair, scheduledAt, location, result: null, by: who.by }, 'Game booked')
     setSaving(false)
     if (res) onClose()
   }
@@ -179,8 +223,14 @@ function BookingForm({ match, preset, at, onClose }: { match?: Match; preset?: [
           data={knownLocations}
           maxLength={80}
         />
+        {!match && target ? (
+          <Text size="xs" c="dimmed">
+            These two already have a matchup waiting — this books that one rather than adding another.
+          </Text>
+        ) : null}
+        {who.field}
         <Group justify="flex-end" gap="xs" mt="xs">
-          {match?.scheduledAt ? (
+          {isAdmin && match?.scheduledAt ? (
             <Button variant="subtle" color="gray" mr="auto" onClick={unbook} disabled={saving}>
               Clear booking
             </Button>
@@ -198,7 +248,8 @@ function BookingForm({ match, preset, at, onClose }: { match?: Match; preset?: [
 }
 
 function ResultForm({ match, preset, onClose }: { match?: Match; preset?: [string, string]; onClose: () => void }) {
-  const { run, player, ratings } = useLeague()
+  const { league, run, player, ratings, isAdmin } = useLeague()
+  const who = useWhoAreYou()
   const [pair, setPair] = useState<[string, string]>(match?.playerIds ?? preset ?? ['', ''])
   const [winnerId, setWinnerId] = useState(match?.result?.winnerId ?? '')
   const [method, setMethod] = useState<ResultMethod>(match?.result?.method ?? 'standard')
@@ -208,7 +259,9 @@ function ResultForm({ match, preset, onClose }: { match?: Match; preset?: [strin
   const [saving, setSaving] = useState(false)
 
   const pairReady = !!(pair[0] && pair[1] && pair[0] !== pair[1])
-  const valid = pairReady && pair.includes(winnerId) && !!playedAt
+  const valid = pairReady && pair.includes(winnerId) && !!playedAt && who.ready
+  // Logging a result for a pair with a game already lined up completes that game instead of adding another.
+  const target = match ?? (pairReady ? existingGame(league, pair, 'result') : undefined)
   const loserName = winnerId ? player(pair.find((id) => id !== winnerId) ?? '')?.name : undefined
   // Skip for edits: current ratings already include this game's result.
   const stakes = pairReady && !match?.result ? pointsInPlay(ratings, pair[0], pair[1]) : null
@@ -217,9 +270,9 @@ function ResultForm({ match, preset, onClose }: { match?: Match; preset?: [strin
     if (!valid) return
     setSaving(true)
     const result = { winnerId, method, playedAt: fromPickerValue(playedAt!) }
-    const res = match
-      ? await run({ action: 'setResult', matchId: match.id, result }, 'Result saved')
-      : await run({ action: 'createMatch', playerIds: pair, scheduledAt: null, location: null, result }, 'Result saved')
+    const res = target
+      ? await run({ action: 'setResult', matchId: target.id, result, by: who.by }, 'Result saved')
+      : await run({ action: 'createMatch', playerIds: pair, scheduledAt: null, location: null, result, by: who.by }, 'Result saved')
     setSaving(false)
     if (res) onClose()
   }
@@ -302,10 +355,18 @@ function ResultForm({ match, preset, onClose }: { match?: Match; preset?: [strin
         </Stack>
       </Radio.Group>
 
-      <DateTimePicker label="Played" value={playedAt} onChange={setPlayedAt} valueFormat="ddd D MMM YYYY, HH:mm" firstDayOfWeek={1} dropdownType="modal" modalProps={{ size: 'auto' }} />
+      <DateTimePicker label="Played" value={playedAt} onChange={setPlayedAt} maxDate={new Date()} valueFormat="ddd D MMM YYYY, HH:mm" firstDayOfWeek={1} dropdownType="modal" modalProps={{ size: 'auto' }} />
 
+      {!match && target ? (
+        <Text size="xs" c="dimmed" mt={-8}>
+          {target.scheduledAt
+            ? `This completes their game booked for ${dateTimeLabel(target.scheduledAt)}.`
+            : 'This completes their matchup that was waiting to be booked.'}
+        </Text>
+      ) : null}
+      {who.field}
       <Group justify="flex-end" gap="xs">
-        {match?.result ? (
+        {isAdmin && match?.result ? (
           <Button variant="subtle" color="gray" mr="auto" onClick={clear} disabled={saving}>
             Clear result
           </Button>

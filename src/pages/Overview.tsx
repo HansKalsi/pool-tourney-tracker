@@ -22,10 +22,10 @@ export function useFixtures() {
 }
 
 export function AdminQuickActions({ size = 'sm' }: { size?: 'xs' | 'sm' }) {
-  const { isAdmin, league, run } = useLeague()
+  const { isAdmin, canBook, league, run } = useLeague()
   const { openBooking, openResult } = useGameDialogs()
   const [filling, setFilling] = useState(false)
-  if (!isAdmin) return null
+  if (!canBook) return null
   const canPlay = league.players.length >= 2
 
   async function fill() {
@@ -42,18 +42,20 @@ export function AdminQuickActions({ size = 'sm' }: { size?: 'xs' | 'sm' }) {
       <Button size={size} variant="default" leftSection={<IconCalendarPlus size={16} />} onClick={() => openBooking()} disabled={!canPlay}>
         Book a game
       </Button>
-      <Button
-        size={size}
-        variant="subtle"
-        color="gray"
-        leftSection={<IconSparkles size={16} />}
-        onClick={fill}
-        loading={filling}
-        disabled={!canPlay}
-        title="Creates a game for every pair of players who haven't been matched yet"
-      >
-        Fill in matchups
-      </Button>
+      {isAdmin ? (
+        <Button
+          size={size}
+          variant="subtle"
+          color="gray"
+          leftSection={<IconSparkles size={16} />}
+          onClick={fill}
+          loading={filling}
+          disabled={!canPlay}
+          title="Creates a game for every pair of players who haven't been matched yet"
+        >
+          Fill in matchups
+        </Button>
+      ) : null}
     </Group>
   )
 }

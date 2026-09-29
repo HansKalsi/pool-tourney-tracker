@@ -56,20 +56,20 @@ describe('api', () => {
     const { league, token } = await setup()
     const [ana, ben] = league.players
     const booked = await post(
-      { action: 'createMatch', leagueId: league.id, playerIds: [ana.id, ben.id], scheduledAt: '2026-10-01T12:00:00Z', location: 'Office', result: null },
+      { action: 'createMatch', leagueId: league.id, playerIds: [ana.id, ben.id], scheduledAt: '2026-09-01T12:00:00Z', location: 'Office', result: null },
       token,
     )
     const match = booked.body.league!.matches[0]
-    expect(match).toMatchObject({ scheduledAt: '2026-10-01T12:00:00.000Z', location: 'Office', result: null })
+    expect(match).toMatchObject({ scheduledAt: '2026-09-01T12:00:00.000Z', location: 'Office', result: null })
 
     const done = await post(
-      { action: 'setResult', leagueId: league.id, matchId: match.id, result: { winnerId: ben.id, method: 'default', playedAt: '2026-10-01T12:30:00Z' } },
+      { action: 'setResult', leagueId: league.id, matchId: match.id, result: { winnerId: ben.id, method: 'default', playedAt: '2026-09-01T12:30:00Z' } },
       token,
     )
     expect(done.body.league!.matches[0].result).toMatchObject({ winnerId: ben.id, method: 'default' })
 
     const bad = await post(
-      { action: 'setResult', leagueId: league.id, matchId: match.id, result: { winnerId: league.players[2].id, method: 'standard', playedAt: '2026-10-01' } },
+      { action: 'setResult', leagueId: league.id, matchId: match.id, result: { winnerId: league.players[2].id, method: 'standard', playedAt: '2026-09-01' } },
       token,
     )
     expect(bad.status).toBe(400)
@@ -138,13 +138,99 @@ describe('availability', () => {
   })
 })
 
+describe('booking and logging without signing in', () => {
+  it('lets anyone add bookings and results, but only admins change or remove them', async () => {
+    const { league, token } = await setup()
+    const [ana, ben, cleo] = league.players
+    const at = '2026-09-02T12:00:00Z'
+
+    // Must say who they are.
+    expect((await post({ action: 'createMatch', leagueId: league.id, playerIds: [ana.id, ben.id], scheduledAt: at, location: null, result: null })).status).toBe(400)
+
+    // Book a new game and log a result, as "Ana".
+    const booked = await post({ action: 'createMatch', leagueId: league.id, playerIds: [ana.id, ben.id], scheduledAt: at, location: null, result: null, by: ana.id })
+    expect(booked.status).toBe(200)
+    const matchId = booked.body.league!.matches[0].id
+    const logged = await post({ action: 'setResult', leagueId: league.id, matchId, result: { winnerId: ana.id, method: 'standard', playedAt: at }, by: ana.id })
+    expect(logged.status).toBe(200)
+    expect(logged.body.viewer).toBeNull()
+
+    // ...but can't change that result, clear it, move the booking, or delete the game.
+    const change = { action: 'setResult', leagueId: league.id, matchId, result: { winnerId: ben.id, method: 'standard', playedAt: at }, by: ben.id }
+    expect((await post(change)).status).toBe(403)
+    expect((await post({ action: 'setResult', leagueId: league.id, matchId, result: null, by: ben.id })).status).toBe(403)
+    expect((await post({ action: 'deleteMatch', leagueId: league.id, matchId })).status).toBe(403)
+    expect((await post({ action: 'generateFixtures', leagueId: league.id, scope: 'unplayed' })).status).toBe(403)
+
+    // A "to book" matchup can be booked by anyone once; moving it afterwards is admin-only.
+    await post({ action: 'generateFixtures', leagueId: league.id, scope: 'unplayed' }, token)
+    const fixture = (await get(league.id)).body.league.matches.find((m) => !m.scheduledAt && m.playerIds.includes(cleo.id))!
+    const book = (scheduledAt: string | null) => post({ action: 'updateMatch', leagueId: league.id, matchId: fixture.id, scheduledAt, location: null, by: cleo.id })
+    expect((await book(null)).status).toBe(403)
+    expect((await book('2026-10-06T12:00:00Z')).status).toBe(200)
+    expect((await book('2026-10-07T12:00:00Z')).status).toBe(403)
+    // Admins can still fix things up.
+    expect((await post({ ...change, by: undefined }, token)).status).toBe(200)
+
+    const log = (await get(league.id, token)).body.activity!
+    expect(log.find((e) => e.text.startsWith('entered a result'))).toMatchObject({ actor: 'Ana', claimed: true })
+    expect(log.find((e) => e.text.startsWith('changed a result'))).toMatchObject({ actor: 'Hans' })
+    expect(log.find((e) => e.text.startsWith('changed a result'))!.claimed).toBeUndefined()
+  })
+
+  it("rejects results dated in the future", async () => {
+    const { league, token } = await setup()
+    const [ana, ben] = league.players
+    const tomorrow = new Date(Date.now() + 24 * 3600 * 1000).toISOString()
+    const res = await post({ action: 'createMatch', leagueId: league.id, playerIds: [ana.id, ben.id], scheduledAt: null, location: null, result: { winnerId: ana.id, method: 'standard', playedAt: tomorrow } }, token)
+    expect(res.status).toBe(400)
+  })
+})
+
+describe('archiving', () => {
+  it('hides an archived league from visitors, freezes it, and lets the creator restore it', async () => {
+    const { league, token } = await setup()
+    const inv = await post({ action: 'createInvite', leagueId: league.id }, token)
+    const mo = (await post({ action: 'redeemInvite', leagueId: league.id, code: inv.body.code, name: 'Mo' })).body.token!
+
+    // Only the creator can archive.
+    expect((await post({ action: 'archiveLeague', leagueId: league.id }, mo)).status).toBe(403)
+    const archived = await post({ action: 'archiveLeague', leagueId: league.id }, token)
+    expect(archived.body.league!.archived).toMatchObject({ by: 'Hans' })
+
+    // Visitors get "gone"; admins still see everything, read-only.
+    expect((await get(league.id)).status).toBe(410)
+    const asMo = await get(league.id, mo)
+    expect(asMo.status).toBe(200)
+    expect(asMo.body.league.players).toHaveLength(3)
+
+    // Nothing can change while archived — not even public play times.
+    expect((await post({ action: 'addPlayers', leagueId: league.id, names: ['Dee'] }, token)).status).toBe(403)
+    expect((await post({ action: 'setAvailability', leagueId: league.id, playerId: league.players[0].id, slots: [] })).status).toBe(403)
+
+    const restored = await post({ action: 'restoreLeague', leagueId: league.id }, token)
+    expect(restored.body.league!.archived).toBeNull()
+    expect((await get(league.id)).status).toBe(200)
+    const log = (await get(league.id, token)).body.activity!.map((e) => e.text)
+    expect(log.slice(0, 2)).toEqual(['restored the league', 'archived the league'])
+  })
+
+  it('only deletes permanently once archived', async () => {
+    const { league, token } = await setup()
+    expect((await post({ action: 'deleteLeague', leagueId: league.id }, token)).status).toBe(400)
+    await post({ action: 'archiveLeague', leagueId: league.id }, token)
+    expect((await post({ action: 'deleteLeague', leagueId: league.id }, token)).body.deleted).toBe(true)
+    expect((await get(league.id)).status).toBe(404)
+  })
+})
+
 describe('activity log', () => {
   it('records who did what, newest first, and only shows it to admins', async () => {
     const { league, token } = await setup()
     const [ana, ben] = league.players
-    await post({ action: 'createMatch', leagueId: league.id, playerIds: [ana.id, ben.id], scheduledAt: '2026-10-01T12:00:00Z', location: null, result: null }, token)
+    await post({ action: 'createMatch', leagueId: league.id, playerIds: [ana.id, ben.id], scheduledAt: '2026-09-01T12:00:00Z', location: null, result: null }, token)
     const matchId = (await get(league.id)).body.league.matches[0].id
-    await post({ action: 'setResult', leagueId: league.id, matchId, result: { winnerId: ben.id, method: 'default', playedAt: '2026-10-01T12:30:00Z' } }, token)
+    await post({ action: 'setResult', leagueId: league.id, matchId, result: { winnerId: ben.id, method: 'default', playedAt: '2026-09-01T12:30:00Z' } }, token)
     const inv = await post({ action: 'createInvite', leagueId: league.id }, token)
     await post({ action: 'redeemInvite', leagueId: league.id, code: inv.body.code, name: 'Mo' })
 
@@ -160,7 +246,7 @@ describe('activity log', () => {
       ['Hans', 'booked Ana v Ben'],
       ['Hans', 'created the league with 3 players'],
     ])
-    expect(log[2]).toMatchObject({ category: 'games', when: '2026-10-01T12:30:00.000Z' })
+    expect(log[2]).toMatchObject({ category: 'games', when: '2026-09-01T12:30:00.000Z' })
     expect(log[0].category).toBe('admin')
   })
 

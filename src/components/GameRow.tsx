@@ -14,7 +14,7 @@ import { MatchMenu } from './MatchCard'
 
 /** One game on one line — used for every list in the Games tab. */
 export function GameRow({ match }: { match: Match }) {
-  const { league, player, ratings, isAdmin } = useLeague()
+  const { league, player, ratings, canBook } = useLeague()
   const { openBooking, openResult } = useGameDialogs()
   const result = match.result
   const when = result?.playedAt ?? match.scheduledAt
@@ -65,12 +65,12 @@ export function GameRow({ match }: { match: Match }) {
         )}
       </div>
       <div className={classes.actions}>
-        {isAdmin && awaiting ? (
+        {canBook && awaiting ? (
           <Button size="compact-xs" onClick={() => openResult(match)}>
             Enter result
           </Button>
         ) : null}
-        {isAdmin && !result && !match.scheduledAt ? (
+        {canBook && !result && !match.scheduledAt ? (
           <Button size="compact-xs" variant="default" onClick={() => openBooking(match)}>
             Book
           </Button>

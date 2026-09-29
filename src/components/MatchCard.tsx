@@ -39,7 +39,7 @@ function Side({ id, align, winner, captured, opponentId }: { id: string; align: 
 }
 
 export function MatchCard({ match }: { match: Match }) {
-  const { isAdmin, ratings } = useLeague()
+  const { canBook, ratings } = useLeague()
   const { openBooking, openResult } = useGameDialogs()
   const result = match.result
   const [a, b] = match.playerIds
@@ -78,12 +78,12 @@ export function MatchCard({ match }: { match: Match }) {
           </Badge>
         ) : null}
         <div className={classes.actions}>
-          {isAdmin && overdue ? (
+          {canBook && overdue ? (
             <Button size="compact-sm" onClick={() => openResult(match)}>
               Enter result
             </Button>
           ) : null}
-          {isAdmin && !result && !match.scheduledAt ? (
+          {canBook && !result && !match.scheduledAt ? (
             <Button size="compact-sm" variant="default" onClick={() => openBooking(match)}>
               Book
             </Button>
@@ -95,15 +95,20 @@ export function MatchCard({ match }: { match: Match }) {
   )
 }
 
-/** The "⋯" menu for a game: calendar export for everyone, booking/result/delete for admins. */
+/**
+ * The "⋯" menu for a game. Everyone: add to calendar, book an unbooked game, enter a missing result.
+ * Admins also: change a booking, edit a result, delete the game.
+ */
 export function MatchMenu({ match }: { match: Match }) {
-  const { isAdmin, run, league, player } = useLeague()
+  const { isAdmin, canBook, run, league, player } = useLeague()
   const { openBooking, openResult } = useGameDialogs()
   const confirm = useConfirm()
   const result = match.result
   const [a, b] = match.playerIds
   const canCalendar = !!match.scheduledAt && !result
-  if (!isAdmin && !canCalendar) return null
+  const canSetTime = !result && (isAdmin || (canBook && !match.scheduledAt))
+  const canSetResult = isAdmin || (canBook && !result)
+  if (!isAdmin && !canCalendar && !canSetTime && !canSetResult) return null
 
   const deleteGame = () =>
     confirm({
@@ -127,16 +132,18 @@ export function MatchMenu({ match }: { match: Match }) {
             Add to calendar
           </Menu.Item>
         ) : null}
-        {isAdmin && !result ? (
+        {canSetTime ? (
           <Menu.Item leftSection={<IconCalendarClock size={16} />} onClick={() => openBooking(match)}>
             {match.scheduledAt ? 'Change booking' : 'Book a time'}
           </Menu.Item>
         ) : null}
+        {canSetResult ? (
+          <Menu.Item leftSection={<IconPencil size={16} />} onClick={() => openResult(match)}>
+            {result ? 'Edit result' : 'Enter result'}
+          </Menu.Item>
+        ) : null}
         {isAdmin ? (
           <>
-            <Menu.Item leftSection={<IconPencil size={16} />} onClick={() => openResult(match)}>
-              {result ? 'Edit result' : 'Enter result'}
-            </Menu.Item>
             <Menu.Divider />
             <Menu.Item color="red" leftSection={<IconTrash size={16} />} onClick={deleteGame}>
               Delete game

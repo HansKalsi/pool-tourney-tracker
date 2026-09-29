@@ -9,18 +9,18 @@ import { useGameDialogs } from './GameDialogs'
 import { IconCheck } from './icons'
 import classes from './StillToPlay.module.scss'
 
-/** Opponent balls someone still has to play. Admins can tap one to book (or re-book) that game. */
+/** Opponent balls someone still has to play. Tap one to book that game (admins can also re-book). */
 export function OpponentBalls({ player, remaining }: { player: Player; remaining: Row['remaining'] }) {
-  const { isAdmin, league } = useLeague()
+  const { isAdmin, canBook, league } = useLeague()
   const { openBooking } = useGameDialogs()
   return (
     <div className={classes.opponents}>
       {remaining.map(({ opponent, booked }) => {
         const label = booked
           ? `${player.name} v ${opponent.name} — booked ${dateTimeLabel(booked.scheduledAt!)}`
-          : `${player.name} hasn't played ${opponent.name} yet${isAdmin ? ' — tap to book' : ''}`
+          : `${player.name} hasn't played ${opponent.name} yet${canBook ? ' — tap to book' : ''}`
         const ball = <Avatar player={opponent} size="xs" />
-        if (!isAdmin) {
+        if (!canBook || (booked && !isAdmin)) {
           return (
             <Tooltip key={opponent.id} label={label}>
               <span className={classes.opp} data-booked={booked ? true : undefined}>

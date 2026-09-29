@@ -50,6 +50,8 @@ export interface PublicLeague {
   players: Player[]
   matches: Match[]
   admins: AdminPublic[]
+  /** Set when the creator archives the league: hidden from visitors, read-only for admins, nothing deleted. */
+  archived?: { at: string; by: string } | null
 }
 
 export interface Viewer {
@@ -66,6 +68,8 @@ export interface ActivityEntry {
   at: string
   /** Admin who did it, or null for someone who wasn't signed in (e.g. setting play times). */
   actor: string | null
+  /** True when `actor` is the player someone said they were, without being signed in as an admin. */
+  claimed?: boolean
   action: ActionName
   category: ActivityCategory
   /** Plain-English description, e.g. "entered a result: Hans won vs Chloe". */
@@ -95,12 +99,19 @@ export type Action =
   | { action: 'createLeague'; name: string; adminName: string; players: string[] }
   | { action: 'redeemInvite'; leagueId: string; code: string; name: string }
   | { action: 'renameLeague'; leagueId: string; name: string }
+  | { action: 'archiveLeague'; leagueId: string }
+  | { action: 'restoreLeague'; leagueId: string }
+  /** Permanent — only allowed once the league is archived. */
   | { action: 'deleteLeague'; leagueId: string }
   | { action: 'addPlayers'; leagueId: string; names: string[] }
   | { action: 'renamePlayer'; leagueId: string; playerId: string; name: string }
   | { action: 'removePlayer'; leagueId: string; playerId: string }
   /** Public — anyone with the link can say when they're free. */
   | { action: 'setAvailability'; leagueId: string; playerId: string; slots: string[] }
+  /*
+   * Booking and logging results are open to everyone (with `by` = the player they say they are).
+   * Changing or removing what's already there — existing results or bookings — stays admin-only.
+   */
   | {
       action: 'createMatch'
       leagueId: string
@@ -108,9 +119,10 @@ export type Action =
       scheduledAt: string | null
       location: string | null
       result: ResultInput | null
+      by?: string
     }
-  | { action: 'updateMatch'; leagueId: string; matchId: string; scheduledAt: string | null; location: string | null }
-  | { action: 'setResult'; leagueId: string; matchId: string; result: ResultInput | null }
+  | { action: 'updateMatch'; leagueId: string; matchId: string; scheduledAt: string | null; location: string | null; by?: string }
+  | { action: 'setResult'; leagueId: string; matchId: string; result: ResultInput | null; by?: string }
   | { action: 'deleteMatch'; leagueId: string; matchId: string }
   | { action: 'generateFixtures'; leagueId: string; scope: 'unplayed' | 'all' }
   | { action: 'createInvite'; leagueId: string }

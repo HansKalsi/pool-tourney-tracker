@@ -1,5 +1,6 @@
 // Lucide icons under the names used across the app — one place to swap icon sets.
 export {
+  Archive as IconArchive,
   CircleAlert as IconAlertCircle,
   ArrowLeft as IconArrowLeft,
   CalendarClock as IconCalendarClock,

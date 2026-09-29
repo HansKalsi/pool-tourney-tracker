@@ -92,7 +92,7 @@ export default function Home() {
               <div>
                 <TextInput
                   label="Your name"
-                  description="You'll be the league admin — the one who can add players, book games and enter results."
+                  description="You'll be the league admin — you manage players and can fix or remove games and results. Anyone can book games and log results."
                   required
                   maxLength={40}
                   value={adminName}
